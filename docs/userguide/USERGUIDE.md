@@ -179,9 +179,9 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ![Settings](screenshots/13-settings.png)
 
-- **Rota:** `/dashboard/settings`
-- **Descrição:** Ajustes administrativos do servidor:
-  - Alteração de senha mestre.
-  - Configuração de autenticação corporativa (OIDC / SAML).
-  - Backup e restauração do banco SQLite (`data.sqlite`).
-  - Habilitação de proxies outbound e limites de taxa globais.
+- **Rota:** `/dashboard/profile` (acessível pelo menu *Settings* no rodapé do menu lateral)
+- **Descrição:** Ajustes administrativos do servidor e preferências:
+  - Localização e status do banco de dados SQLite (`~/.9router/db/data.sqlite`).
+  - Download e restauração de backups em 1 clique.
+  - Alternância de tema visual (Light, Dark, System) e idioma.
+  - Políticas de segurança: ativação/desativação de `Require login` e troca de senha administrativa.
