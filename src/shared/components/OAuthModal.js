@@ -640,7 +640,22 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
       // localStorage may be unavailable or data may be malformed - ignore silently
     }
 
+    // Also poll localStorage periodically in case storage event was missed in same-window context
+    const storagePollInterval = setInterval(() => {
+      try {
+        const stored = localStorage.getItem("oauth_callback");
+        if (stored) {
+          const data = JSON.parse(stored);
+          if (data.timestamp && Date.now() - data.timestamp < 60000) {
+            handleCallback(data);
+          }
+          localStorage.removeItem("oauth_callback");
+        }
+      } catch {}
+    }, 500);
+
     return () => {
+      clearInterval(storagePollInterval);
       window.removeEventListener("message", handleMessage);
       window.removeEventListener("storage", handleStorage);
       if (channel) channel.close();
