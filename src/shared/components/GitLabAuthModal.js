@@ -8,8 +8,7 @@ const GITLAB_COM = "https://gitlab.com";
 
 function getRedirectUri() {
   if (typeof window === "undefined") return "http://localhost/callback";
-  const port = window.location.port || (window.location.protocol === "https:" ? "443" : "80");
-  return `http://localhost:${port}/callback`;
+  return `${window.location.origin}/callback`;
 }
 
 /**

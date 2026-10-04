@@ -258,8 +258,9 @@ export function startCodexProxy(appPort) {
         return;
       }
 
-      // Mode B: legacy channel fallback — 302 redirect to app /callback
-      const redirectUrl = `http://localhost:${appPort}/callback${url.search}`;
+      // Mode B: legacy channel fallback — 302 redirect to app /callback (support 127.0.0.1 and localhost)
+      const redirectHost = session?.redirectUri ? new URL(session.redirectUri).host : `127.0.0.1:${appPort}`;
+      const redirectUrl = `http://${redirectHost}/callback${url.search}`;
       res.writeHead(302, { Location: redirectUrl });
       res.end();
       stopCodexProxy();
@@ -400,8 +401,9 @@ export function startXaiProxy(appPort) {
         return;
       }
 
-      // Mode B: legacy fallback redirect
-      const redirectUrl = `http://localhost:${appPort}/callback${url.search}`;
+      // Mode B: legacy fallback redirect (support 127.0.0.1 and localhost)
+      const redirectHost = session?.redirectUri ? new URL(session.redirectUri).host : `127.0.0.1:${appPort}`;
+      const redirectUrl = `http://${redirectHost}/callback${url.search}`;
       res.writeHead(302, { Location: redirectUrl });
       res.end();
       stopXaiProxy();
