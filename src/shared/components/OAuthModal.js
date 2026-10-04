@@ -360,7 +360,8 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
       } else if (provider === "xai") {
         redirectUri = "http://127.0.0.1:56121/callback";
       } else {
-        redirectUri = `http://localhost:${appPort}/callback`;
+        // Keep the exact origin (localhost vs 127.0.0.1) so Google OAuth matches the registered callback
+        redirectUri = `${window.location.origin}/callback`;
       }
 
       // Build authorize URL first to get codeVerifier/state for codex server-side mode
@@ -592,12 +593,13 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
 
     // Method 1: postMessage from popup
     const handleMessage = (event) => {
-      // Allow messages from same origin or localhost (any port)
-      const isLocalhost = event.origin.includes("localhost") || event.origin.includes("127.0.0.1");
+      // Allow messages from same origin, localhost, 127.0.0.1 (any port)
+      const originStr = String(event.origin || "");
+      const isLocalhost = originStr.includes("localhost") || originStr.includes("127.0.0.1");
       const isSameOrigin = event.origin === window.location.origin;
-      if (!isLocalhost && !isSameOrigin) return;
+      if (!isLocalhost && !isSameOrigin && event.origin !== "null") return;
       
-      if (event.data?.type === "oauth_callback") {
+      if (event.data?.type === "oauth_callback" && event.data?.data) {
         handleCallback(event.data.data);
       }
     };
