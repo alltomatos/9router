@@ -36,7 +36,8 @@ export default function ProxyPoolsPage() {
   const [webshareForm, setWebshareForm] = useState({
     apiKey: "",
     mode: "direct",
-    pageSize: "50",
+    pageSize: "100",
+    planId: "",
     autoReplaceOnWebshare: true,
     removeDeadFrom9Router: true,
   });
@@ -62,6 +63,11 @@ export default function ProxyPoolsPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
   const [defaultPoolId, setDefaultPoolId] = useState("");
+  // Filtros de visualização
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCity, setFilterCity] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterOrigin, setFilterOrigin] = useState("all");
   const relayMenuRef = useRef(null);
   const notify = useNotificationStore();
 
@@ -605,7 +611,8 @@ export default function ProxyPoolsPage() {
         body: JSON.stringify({
           apiKey: webshareForm.apiKey.trim(),
           mode: webshareForm.mode,
-          pageSize: Number(webshareForm.pageSize) || 50,
+          pageSize: Number(webshareForm.pageSize) || 100,
+          planId: webshareForm.planId.trim() || undefined,
         }),
       });
 
@@ -637,7 +644,8 @@ export default function ProxyPoolsPage() {
           apiKey: webshareForm.apiKey.trim(),
           autoReplaceOnWebshare: webshareForm.autoReplaceOnWebshare,
           removeDeadFrom9Router: webshareForm.removeDeadFrom9Router,
-          pageSize: Number(webshareForm.pageSize) || 50,
+          pageSize: Number(webshareForm.pageSize) || 100,
+          planId: webshareForm.planId.trim() || undefined,
         }),
       });
 
@@ -658,6 +666,49 @@ export default function ProxyPoolsPage() {
       setWebshareSyncing(false);
     }
   };
+
+  // Cidades únicas extraídas para o filtro
+  const availableCities = useMemo(() => {
+    const set = new Set();
+    for (const pool of proxyPools) {
+      const matchCity = pool.name?.match(/\s+-\s+(.+)$/);
+      const city = pool.cityName || (matchCity ? matchCity[1] : null);
+      if (city) set.add(city.trim());
+    }
+    return Array.from(set).sort();
+  }, [proxyPools]);
+
+  // Proxies filtrados dinamicamente
+  const filteredProxyPools = useMemo(() => {
+    return proxyPools.filter((pool) => {
+      // 1. Busca por texto
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = pool.name?.toLowerCase().includes(q);
+        const matchesUrl = pool.proxyUrl?.toLowerCase().includes(q);
+        const matchesCity = pool.cityName?.toLowerCase().includes(q);
+        if (!matchesName && !matchesUrl && !matchesCity) return false;
+      }
+      // 2. Filtro de cidade
+      if (filterCity !== "all") {
+        const matchCity = pool.name?.match(/\s+-\s+(.+)$/);
+        const city = pool.cityName || (matchCity ? matchCity[1] : null);
+        if (city?.trim() !== filterCity) return false;
+      }
+      // 3. Filtro de status
+      if (filterStatus === "active" && !pool.isActive) return false;
+      if (filterStatus === "inactive" && pool.isActive) return false;
+      if (filterStatus === "healthy" && pool.testStatus !== "active") return false;
+      if (filterStatus === "error" && pool.testStatus !== "error") return false;
+
+      // 4. Filtro de origem
+      if (filterOrigin === "webshare" && !pool.name?.startsWith("Webshare") && !pool.proxyUrl?.includes("webshare")) return false;
+      if (filterOrigin === "relay" && pool.type !== "vercel" && pool.type !== "cloudflare" && pool.type !== "deno") return false;
+      if (filterOrigin === "custom" && (pool.name?.startsWith("Webshare") || pool.type === "vercel" || pool.type === "cloudflare" || pool.type === "deno")) return false;
+
+      return true;
+    });
+  }, [proxyPools, searchQuery, filterCity, filterStatus, filterOrigin]);
 
   const activeCount = useMemo(
     () => proxyPools.filter((pool) => pool.isActive === true).length,
@@ -741,8 +792,68 @@ export default function ProxyPoolsPage() {
       </div>
 
       <Card>
+        {/* Barra de Filtros */}
+        <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 border-b border-border/60 pb-4">
+          <div>
+            <label className="text-[11px] font-semibold text-text-muted mb-1 block uppercase">Buscar por IP ou Nome</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Ex.: 104.253 ou São Paulo..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-surface-muted border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-text-main focus:outline-none focus:border-primary"
+              />
+              <span className="material-symbols-outlined absolute left-2.5 top-2 text-[14px] text-text-muted">search</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold text-text-muted mb-1 block uppercase">Filtrar por Cidade</label>
+            <select
+              value={filterCity}
+              onChange={(e) => setFilterCity(e.target.value)}
+              className="w-full bg-surface-muted border border-border rounded-lg px-2.5 py-1.5 text-xs text-text-main focus:outline-none focus:border-primary"
+            >
+              <option value="all">Todas as Cidades ({availableCities.length})</option>
+              {availableCities.map((city) => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold text-text-muted mb-1 block uppercase">Status</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full bg-surface-muted border border-border rounded-lg px-2.5 py-1.5 text-xs text-text-main focus:outline-none focus:border-primary"
+            >
+              <option value="all">Todos os Status</option>
+              <option value="active">Somente Ativos</option>
+              <option value="inactive">Somente Inativos</option>
+              <option value="healthy">Saudáveis (Health Check OK)</option>
+              <option value="error">Com Erro (Dead / Error)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold text-text-muted mb-1 block uppercase">Origem</label>
+            <select
+              value={filterOrigin}
+              onChange={(e) => setFilterOrigin(e.target.value)}
+              className="w-full bg-surface-muted border border-border rounded-lg px-2.5 py-1.5 text-xs text-text-main focus:outline-none focus:border-primary"
+            >
+              <option value="all">Todas as Origens</option>
+              <option value="webshare">Webshare</option>
+              <option value="relay">Relays (Vercel/Cloudflare/Deno)</option>
+              <option value="custom">Manuais / Custom</option>
+            </select>
+          </div>
+        </div>
+
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          {proxyPools.length > 0 && (
+          {filteredProxyPools.length > 0 && (
             <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer">
               <input
                 type="checkbox"
@@ -755,6 +866,9 @@ export default function ProxyPoolsPage() {
           )}
           <Badge variant="default">Total: {proxyPools.length}</Badge>
           <Badge variant="success">Active: {activeCount}</Badge>
+          {filteredProxyPools.length !== proxyPools.length && (
+            <Badge variant="warning">Filtrados: {filteredProxyPools.length}</Badge>
+          )}
         </div>
 
         {(selectedIds.length > 0 || healthChecking) && (
@@ -800,9 +914,17 @@ export default function ProxyPoolsPage() {
             </p>
             <Button icon="add" onClick={openCreateModal}>Add Proxy Pool</Button>
           </div>
+        ) : filteredProxyPools.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-text-main font-medium mb-1">Nenhum proxy corresponde aos filtros selecionados</p>
+            <p className="text-sm text-text-muted mb-4">Tente limpar a busca ou selecionar outra cidade/status.</p>
+            <Button size="sm" variant="secondary" onClick={() => { setSearchQuery(""); setFilterCity("all"); setFilterStatus("all"); setFilterOrigin("all"); }}>
+              Limpar Filtros
+            </Button>
+          </div>
         ) : (
           <div className="flex flex-col divide-y divide-black/[0.04] dark:divide-white/[0.05]">
-            {proxyPools.map((pool) => (
+            {filteredProxyPools.map((pool) => (
               <div key={pool.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <input
@@ -812,17 +934,27 @@ export default function ProxyPoolsPage() {
                     className="mt-1 size-4 shrink-0 rounded border-black/20 dark:border-white/20"
                   />
                   <div className="min-w-0 flex-1">
+                  {/* Title & Badges */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="min-w-0 max-w-full truncate text-sm font-medium sm:max-w-[18rem]">{pool.name}</p>
-                    {pool.cityName && (
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
-                        <span className="material-symbols-outlined text-[12px]">location_on</span>
-                        {pool.cityName}{pool.countryCode ? ` (${pool.countryCode})` : ""}
-                      </span>
-                    )}
+                    <p className="min-w-0 max-w-full font-mono text-sm font-semibold text-text-main" title={pool.name}>
+                      {pool.name.replace(/\s+-\s+.*$/, "")}
+                    </p>
+                    {(() => {
+                      const matchCity = pool.name.match(/\s+-\s+(.+)$/);
+                      const cityDisplay = pool.cityName || (matchCity ? matchCity[1] : null);
+                      const countryDisplay = pool.countryCode || (pool.name.match(/\[([A-Z]{2})\]/) ? pool.name.match(/\[([A-Z]{2})\]/)[1] : null);
+                      if (!cityDisplay && !countryDisplay) return null;
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-xs">
+                          <span className="material-symbols-outlined text-[14px]">location_on</span>
+                          {cityDisplay ? `${cityDisplay}` : ""}
+                          {countryDisplay ? ` (${countryDisplay})` : ""}
+                        </span>
+                      );
+                    })()}
                     {defaultPoolId === pool.id && (
                       <Badge variant="warning" size="sm">
-                        Padrão Global
+                        ⭐ Padrão Global
                       </Badge>
                     )}
                     <Badge variant={getStatusVariant(pool.testStatus)} size="sm" dot>
@@ -1139,7 +1271,7 @@ export default function ProxyPoolsPage() {
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-text-main mb-1 block">Mode</label>
+              <label className="text-xs font-medium text-text-main mb-1 block">Modo</label>
               <select
                 className="w-full bg-surface-muted border border-border rounded-lg px-3 py-2 text-xs text-text-main focus:outline-none focus:border-primary"
                 value={webshareForm.mode}
@@ -1150,13 +1282,19 @@ export default function ProxyPoolsPage() {
               </select>
             </div>
             <Input
-              label="Page Size"
+              label="Quantidade (Ex: 100)"
               type="number"
-              placeholder="50"
+              placeholder="100"
               value={webshareForm.pageSize}
               onChange={(e) => setWebshareForm((prev) => ({ ...prev, pageSize: e.target.value }))}
             />
           </div>
+          <Input
+            label="Plan ID Opcional (se tiver múltiplos planos)"
+            placeholder="Ex: 2 (deixe vazio para usar o padrão)"
+            value={webshareForm.planId}
+            onChange={(e) => setWebshareForm((prev) => ({ ...prev, planId: e.target.value }))}
+          />
           <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-surface-muted/50 p-3 text-xs">
             <label className="flex items-center gap-2 cursor-pointer font-medium text-text-main">
               <input

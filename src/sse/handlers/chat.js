@@ -67,17 +67,68 @@ export async function handleChat(request, clientRawRequest = null) {
     log.debug("AUTH", "No API key provided (local mode)");
   }
 
-  // Enforce API key if enabled in settings
+  // Enforce API key if enabled in settings OR if an API key was provided
   const settings = await getSettings();
-  if (settings.requireApiKey) {
+  if (settings.requireApiKey || apiKey) {
     if (!apiKey) {
-      log.warn("AUTH", "Missing API key (requireApiKey=true)");
+      log.warn("AUTH", "Missing API key");
       return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
     }
     const valid = await isValidApiKey(apiKey);
     if (!valid) {
-      log.warn("AUTH", "Invalid API key (requireApiKey=true)");
+      log.warn("AUTH", "Invalid API key");
       return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Invalid API key");
+    }
+  }
+
+  // Multitenant Check: Cota e Whitelist de modelos por usuário/empresa
+  if (apiKey) {
+    const { resolveApiKeyUser } = await import("@/sse/services/auth.js");
+    const tenantUser = await resolveApiKeyUser(apiKey);
+    if (tenantUser) {
+      // 1. Checagem de Cota Mensal (Hard limit HTTP 429)
+      const { checkUserQuota } = await import("@/lib/localDb");
+      const quotaStatus = await checkUserQuota(tenantUser.id);
+      if (quotaStatus.isExceeded) {
+        log.warn("QUOTA", `User ${tenantUser.username} exceeded monthly budget ($${quotaStatus.monthlyBudgetUsd})`);
+        return errorResponse(
+          HTTP_STATUS.TOO_MANY_REQUESTS,
+          `Monthly quota exceeded (${quotaStatus.usagePercent}% used of $${quotaStatus.monthlyBudgetUsd}). Contact administrator.`
+        );
+      }
+
+      // 2. Whitelist de Modelos e Combos
+      const allowedModels = tenantUser.allowedModels || [];
+      const allowedCombos = tenantUser.allowedCombos || [];
+      const hasRestrictions = allowedModels.length > 0 || allowedCombos.length > 0;
+
+      if (hasRestrictions) {
+        let isPermitted = allowedModels.includes(modelStr);
+        if (!isPermitted && allowedCombos.length > 0) {
+          const { getComboById, getComboByName } = await import("@/lib/localDb");
+          for (const comboRef of allowedCombos) {
+            const comboObj = (await getComboById(comboRef)) || (await getComboByName(comboRef));
+            if (comboObj) {
+              if (comboObj.name === modelStr || comboObj.id === modelStr) {
+                isPermitted = true;
+                break;
+              }
+              if (Array.isArray(comboObj.models) && comboObj.models.includes(modelStr)) {
+                isPermitted = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!isPermitted) {
+          log.warn("AUTH", `Model "${modelStr}" not allowed for user ${tenantUser.username}`);
+          return errorResponse(
+            HTTP_STATUS.FORBIDDEN,
+            `Model "${modelStr}" is not allowed for your account.`
+          );
+        }
+      }
     }
   }
 

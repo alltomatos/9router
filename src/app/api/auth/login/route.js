@@ -29,7 +29,7 @@ export async function POST(request) {
       );
     }
 
-    const { password } = await request.json();
+    const { username, password } = await request.json();
     const settings = await getSettings();
 
     // Block login via tunnel/tailscale if dashboard access is disabled
@@ -37,50 +37,51 @@ export async function POST(request) {
       return NextResponse.json({ error: "Dashboard access via tunnel is disabled" }, { status: 403 });
     }
 
-    // Default password is '123456' if not set
-    const storedHash = settings.password;
-
-    if (settings.authMode === "sso" || settings.authMode === "saml" || settings.authMode === "oidc") {
-      const ssoType = settings.ssoType || (settings.authMode === "saml" ? "saml" : "oidc");
-      if (ssoType === "saml" && isSamlConfigured(settings)) {
-        return NextResponse.json({ error: "Password login is disabled. Use SAML SSO sign in." }, { status: 403 });
-      }
-      if (ssoType === "oidc" && isOidcConfigured(settings)) {
-        return NextResponse.json({ error: "Password login is disabled. Use OIDC sign in." }, { status: 403 });
-      }
-    }
-
+    // Se fornecido username, checamos login de usuário (multitenant)
+    let userRecord = null;
     let isValid = false;
-    if (storedHash) {
-      isValid = await bcrypt.compare(password, storedHash);
+
+    if (username && String(username).trim().toLowerCase() !== "admin") {
+      const cleanUsername = String(username).trim().toLowerCase();
+      isValid = await validateUserPassword(cleanUsername, password);
+      if (isValid) {
+        userRecord = await getUserByUsername(cleanUsername);
+      }
     } else {
-      // Use env var or default
-      const initialPassword = process.env.INITIAL_PASSWORD || "123456";
-      isValid = password === initialPassword;
+      // Autenticação Admin (legada ou explícita)
+      if (settings.authMode === "sso" || settings.authMode === "saml" || settings.authMode === "oidc") {
+        const ssoType = settings.ssoType || (settings.authMode === "saml" ? "saml" : "oidc");
+        if (ssoType === "saml" && isSamlConfigured(settings)) {
+          return NextResponse.json({ error: "Password login is disabled. Use SAML SSO sign in." }, { status: 403 });
+        }
+        if (ssoType === "oidc" && isOidcConfigured(settings)) {
+          return NextResponse.json({ error: "Password login is disabled. Use OIDC sign in." }, { status: 403 });
+        }
+      }
+
+      const storedHash = settings.password;
+      if (storedHash) {
+        isValid = await bcrypt.compare(password, storedHash);
+      } else {
+        const initialPassword = process.env.INITIAL_PASSWORD || "123456";
+        isValid = password === initialPassword;
+      }
+      if (isValid) {
+        userRecord = { id: "admin", username: "admin", role: "admin", name: "Administrator" };
+      }
     }
 
-    if (isValid) {
+    if (isValid && userRecord) {
       recordSuccess(ip);
 
-      // Default password still in use on a remote client → force a password
-      // change before the dashboard is exposed remotely (keeps local UX intact).
+      const storedHash = settings.password;
       const mustChangePassword =
-        !storedHash && !process.env.INITIAL_PASSWORD && !isLocalRequest(request);
+        userRecord.role === "admin" &&
+        !storedHash &&
+        !process.env.INITIAL_PASSWORD &&
+        !isLocalRequest(request);
 
       if (mustChangePassword) {
-        // Do NOT issue a session token: a fresh install's default password is
-        // public knowledge ("123456"), so handing out a valid JWT would let any
-        // remote attacker authenticate and (e.g.) PATCH /api/settings to disable
-        // authentication entirely (CVE-2026-56679 class). Require the password
-        // to be changed first.
-        //
-        // NOTE: this intentionally leaves no remote self-service password-change
-        // path — the change-password flow (PATCH /api/settings) requires a JWT,
-        // which we deliberately withhold. A remote fresh-install user must either
-        // change the password from the local machine or set INITIAL_PASSWORD
-        // before first launch. This is a deliberate security trade-off, not an
-        // oversight: issuing any credential before the default password is
-        // rotated re-opens the exact attack chain this branch closes.
         return NextResponse.json(
           { success: false, error: "Default password must be changed before remote access. Change it from the local machine (or set INITIAL_PASSWORD).", mustChangePassword },
           { status: 403, headers: NO_STORE_HEADERS }
@@ -88,9 +89,23 @@ export async function POST(request) {
       }
 
       const cookieStore = await cookies();
-      await setDashboardAuthCookie(cookieStore, request);
+      await setDashboardAuthCookie(cookieStore, request, {
+        userId: userRecord.id,
+        username: userRecord.username,
+        role: userRecord.role,
+        name: userRecord.name,
+      });
 
-      return NextResponse.json({ success: true, mustChangePassword: false }, { headers: NO_STORE_HEADERS });
+      return NextResponse.json({
+        success: true,
+        mustChangePassword: false,
+        user: {
+          id: userRecord.id,
+          username: userRecord.username,
+          name: userRecord.name,
+          role: userRecord.role,
+        },
+      }, { headers: NO_STORE_HEADERS });
     }
 
     const { remainingBeforeLock } = recordFail(ip);
@@ -102,7 +117,7 @@ export async function POST(request) {
       );
     }
     return NextResponse.json(
-      { error: `Invalid password. ${remainingBeforeLock} attempt(s) left before lockout.`, remainingBeforeLock },
+      { error: `Invalid credentials. ${remainingBeforeLock} attempt(s) left before lockout.`, remainingBeforeLock },
       { status: 401 }
     );
   } catch (error) {
