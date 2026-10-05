@@ -1,15 +1,35 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { deleteApiKey, getApiKeyById, updateApiKey } from "@/lib/localDb";
+import { getDashboardAuthSession } from "@/lib/auth/dashboardSession";
+
+async function checkKeyOwnership(keyId) {
+  const cookieStore = await cookies();
+  const session = await getDashboardAuthSession(cookieStore.get("auth_token")?.value);
+  if (!session) return { allowed: false, error: "Unauthorized", status: 401 };
+
+  const key = await getApiKeyById(keyId);
+  if (!key) return { allowed: false, error: "Key not found", status: 404 };
+
+  // Se for cliente, só pode acessar chaves vinculadas ao seu próprio userId
+  if (session.role === "client") {
+    if (key.userId !== session.userId) {
+      return { allowed: false, error: "Forbidden: You do not own this API key", status: 403 };
+    }
+  }
+
+  return { allowed: true, key, session };
+}
 
 // GET /api/keys/[id] - Get single key
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
-    const key = await getApiKeyById(id);
-    if (!key) {
-      return NextResponse.json({ error: "Key not found" }, { status: 404 });
+    const auth = await checkKeyOwnership(id);
+    if (!auth.allowed) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-    return NextResponse.json({ key });
+    return NextResponse.json({ key: auth.key });
   } catch (error) {
     console.log("Error fetching key:", error);
     return NextResponse.json({ error: "Failed to fetch key" }, { status: 500 });
@@ -20,16 +40,17 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { isActive } = body;
-
-    const existing = await getApiKeyById(id);
-    if (!existing) {
-      return NextResponse.json({ error: "Key not found" }, { status: 404 });
+    const auth = await checkKeyOwnership(id);
+    if (!auth.allowed) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
+
+    const body = await request.json();
+    const { isActive, name } = body;
 
     const updateData = {};
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (name !== undefined) updateData.name = name;
 
     const updated = await updateApiKey(id, updateData);
 
@@ -44,6 +65,10 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
+    const auth = await checkKeyOwnership(id);
+    if (!auth.allowed) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     const deleted = await deleteApiKey(id);
     if (!deleted) {
