@@ -7,18 +7,20 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 ## Sumário
 1. [Tela de Autenticação (Login)](#1-tela-de-autenticação-login)
 2. [Endpoint & Chaves de API](#2-endpoint--chaves-de-api)
-3. [Gerenciamento de Provedores (Providers)](#3-gerenciamento-de-provedores-providers)
-4. [Combos de Modelos & Adaptador de Visão](#4-combos-de-modelos--adaptador-de-visão)
-5. [Estatísticas de Consumo (Usage)](#5-estatísticas-de-consumo-usage)
-6. [Rastreador de Cotas (Quota Tracker)](#6-rastreador-de-cotas-quota-tracker)
-7. [Economizador de Tokens (Token Saver / RTK)](#7-economizador-de-tokens-token-saver--rtk)
-8. [Servidor MCP Nativo (Model Context Protocol)](#8-servidor-mcp-nativo-model-context-protocol)
-9. [Ferramentas CLI & IDEs](#9-ferramentas-cli--ides)
-10. [Pools de Proxy & Integração Webshare](#10-pools-de-proxy--integração-webshare)
-11. [Provedores de Mídia e Busca Web](#11-provedores-de-mídia-e-busca-web)
-12. [Habilidades (Skills)](#12-habilidades-skills)
-13. [Log do Console & Diagnóstico](#13-log-do-console--diagnóstico)
-14. [Configurações Globais (Settings)](#14-configurações-globais-settings)
+3. [Empresas & Clientes B2B (Gestão SaaS)](#3-empresas--clientes-b2b-gestão-saas)
+4. [Painel do Cliente B2B & Janela de Uso](#4-painel-do-cliente-b2b--janela-de-uso)
+5. [Gerenciamento de Provedores (Providers)](#5-gerenciamento-de-provedores-providers)
+6. [Combos de Modelos & Adaptador de Visão](#6-combos-de-modelos--adaptador-de-visão)
+7. [Estatísticas de Consumo (Usage)](#7-estatísticas-de-consumo-usage)
+8. [Rastreador de Cotas (Quota Tracker)](#8-rastreador-de-cotas-quota-tracker)
+9. [Economizador de Tokens (Token Saver / RTK)](#9-economizador-de-tokens-token-saver--rtk)
+10. [Servidor MCP Nativo (Model Context Protocol)](#10-servidor-mcp-nativo-model-context-protocol)
+11. [Ferramentas CLI & IDEs](#11-ferramentas-cli--ides)
+12. [Pools de Proxy & Integração Webshare](#12-pools-de-proxy--integração-webshare)
+13. [Provedores de Mídia e Busca Web](#13-provedores-de-mídia-e-busca-web)
+14. [Habilidades (Skills)](#14-habilidades-skills)
+15. [Log do Console & Diagnóstico](#15-log-do-console--diagnóstico)
+16. [Configurações Globais (Settings)](#16-configurações-globais-settings)
 
 ---
 
@@ -47,7 +49,34 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 3. Gerenciamento de Provedores (Providers)
+## 3. Empresas & Clientes B2B (Gestão SaaS)
+
+![Empresas e Cotas](screenshots/14-users-admin.png)
+
+- **Rota:** `/dashboard/users`
+- **Descrição:** Módulo de gerenciamento multitenant (SaaS) para cadastrar e controlar empresas clientes que consom a API do 9Router.
+- **Recursos Principais:**
+  - **Criação de Clientes:** Cadastro de contas com login próprio (`username`), senha com hash seguro (`bcrypt`) e nome corporativo.
+  - **Teto Orçamentário Mensal ($ USD):** Definição de limites financeiros rígidos (*Hard Limit*). Ao atingir 100% da cota mensal, novas requisições da empresa recebem automaticamente `HTTP 429 Too Many Requests`.
+  - **Whitelisting Híbrido de Modelos:** Restrição dos modelos acessíveis por cada empresa através de combos atribuídos ou modelos avulsos explicitamente autorizados.
+  - **Monitoramento de Uso:** Cards visuais com barras de progresso coloridas destacando o consumo acumulado no ciclo corrente.
+
+---
+
+## 4. Painel do Cliente B2B & Janela de Uso
+
+![Painel do Cliente B2B](screenshots/15-client-dashboard.png)
+
+- **Rota:** `/dashboard/client`
+- **Descrição:** Interface simplificada e segura destinada às empresas clientes acessarem após o login.
+- **Recursos Principais:**
+  - **Janela de Consumo em Tempo Real:** Widget central exibindo a porcentagem utilizada da cota mensal (`% utilizado`), valor gasto em dólares versus o teto contratado.
+  - **Autonomia de Chaves de API:** O próprio cliente pode gerar, nomear, copiar com 1 clique e revogar suas próprias chaves de acesso (`sk-...`) com isolamento total (IDOR-safe).
+  - **Catálogo de Modelos Liberados:** Lista dos modelos diretos e combos inteligentes disponíveis para o plano contratado.
+
+---
+
+## 5. Gerenciamento de Provedores (Providers)
 
 ![Providers](screenshots/02-providers.png)
 
@@ -60,7 +89,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 4. Combos de Modelos & Adaptador de Visão
+## 6. Combos de Modelos & Adaptador de Visão
 
 ![Combos](screenshots/03-combos.png)
 
@@ -72,7 +101,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 5. Estatísticas de Consumo (Usage)
+## 7. Estatísticas de Consumo (Usage)
 
 ![Usage](screenshots/04-usage.png)
 
@@ -85,7 +114,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 6. Rastreador de Cotas (Quota Tracker)
+## 8. Rastreador de Cotas (Quota Tracker)
 
 ![Quota Tracker](screenshots/05-quota.png)
 
@@ -94,7 +123,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 7. Economizador de Tokens (Token Saver / RTK)
+## 9. Economizador de Tokens (Token Saver / RTK)
 
 ![Token Saver](screenshots/06-token-saver.png)
 
@@ -107,7 +136,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 8. Servidor MCP Nativo (Model Context Protocol)
+## 10. Servidor MCP Nativo (Model Context Protocol)
 
 ![MCP Server](screenshots/07-mcp-server.png)
 
@@ -121,7 +150,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 9. Ferramentas CLI & IDEs
+## 11. Ferramentas CLI & IDEs
 
 ![CLI Tools](screenshots/08-cli-tools.png)
 
@@ -132,7 +161,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 10. Pools de Proxy & Integração Webshare
+## 12. Pools de Proxy & Integração Webshare
 
 ![Proxy Pools](screenshots/09-proxy-pools.png)
 
@@ -145,7 +174,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 11. Provedores de Mídia e Busca Web
+## 13. Provedores de Mídia e Busca Web
 
 ![Media & Web](screenshots/10-media-web.png)
 
@@ -157,7 +186,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 12. Habilidades (Skills)
+## 14. Habilidades (Skills)
 
 ![Skills](screenshots/11-skills.png)
 
@@ -166,7 +195,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 13. Log do Console & Diagnóstico
+## 15. Log do Console & Diagnóstico
 
 ![Console Log](screenshots/12-console-log.png)
 
@@ -175,7 +204,7 @@ O **9Router** (`9router-app`) é um gateway local corporativo de alto desempenho
 
 ---
 
-## 14. Configurações Globais (Settings)
+## 16. Configurações Globais (Settings)
 
 ![Settings](screenshots/13-settings.png)
 
