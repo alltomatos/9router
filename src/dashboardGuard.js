@@ -27,6 +27,7 @@ const PUBLIC_API_PATHS = [
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/status",
+  "/api/auth/me",
   "/api/auth/oidc",
   "/api/auth/saml",
   "/api/version",
@@ -52,6 +53,8 @@ const ALWAYS_PROTECTED = [
 
 // Require auth, but allow through if requireLogin is disabled
 const PROTECTED_API_PATHS = [
+  "/api/users",
+  "/api/client",
   "/api/settings",
   "/api/keys",
   "/api/providers",
@@ -75,7 +78,7 @@ const PROTECTED_API_PATHS = [
 const LOCAL_ONLY_PATHS = [
   "/api/cli-tools/cowork-settings",
   "/api/cli-tools/antigravity-mitm",
-  "/api/mcp/",
+  "/api/mcp/[plugin]",
   "/api/tunnel/tailscale-install",
   "/api/tunnel/tailscale-enable",
   "/api/tunnel/tailscale-disable",

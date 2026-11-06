@@ -81,6 +81,7 @@ export const TABLES = {
       key: "TEXT UNIQUE NOT NULL",
       name: "TEXT",
       machineId: "TEXT",
+      userId: "TEXT",
       isActive: "INTEGER DEFAULT 1",
       createdAt: "TEXT NOT NULL",
       // Per-key access control. Additive columns, picked up by
@@ -88,7 +89,31 @@ export const TABLES = {
       accessRestricted: "INTEGER DEFAULT 0",
       accessAllow: "TEXT",
     },
-    indexes: ["CREATE INDEX IF NOT EXISTS idx_ak_key ON apiKeys(key)"],
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_ak_key ON apiKeys(key)",
+      "CREATE INDEX IF NOT EXISTS idx_ak_userId ON apiKeys(userId)",
+    ],
+  },
+  users: {
+    columns: {
+      id: "TEXT PRIMARY KEY",
+      username: "TEXT UNIQUE NOT NULL",
+      passwordHash: "TEXT NOT NULL",
+      name: "TEXT NOT NULL",
+      role: "TEXT NOT NULL DEFAULT 'client'",
+      allowedCombos: "TEXT DEFAULT '[]'",
+      allowedModels: "TEXT DEFAULT '[]'",
+      monthlyBudgetUsd: "REAL DEFAULT 0",
+      currentCycleSpentUsd: "REAL DEFAULT 0",
+      budgetResetDay: "INTEGER DEFAULT 1",
+      isActive: "INTEGER DEFAULT 1",
+      createdAt: "TEXT NOT NULL",
+      updatedAt: "TEXT NOT NULL",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)",
+      "CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)",
+    ],
   },
   combos: {
     columns: {

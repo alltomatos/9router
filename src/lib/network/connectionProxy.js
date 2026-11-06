@@ -143,9 +143,44 @@ export async function resolveConnectionProxyConfig(
 
     /**
      * -----------------------------
-     * Legacy Proxy Fallback
+     * Legacy Proxy Fallback / Default Global Proxy Pool
      * -----------------------------
      */
+    const { getSettings } = await import("@/lib/localDb");
+    const settings = await getSettings();
+    const defaultProxyPoolId = settings.defaultProxyPoolId;
+
+    if (!proxyPoolId && defaultProxyPoolId) {
+      const defaultPool = await getProxyPoolById(defaultProxyPoolId);
+      const defaultProxyUrl = normalizeString(defaultPool?.proxyUrl);
+      const defaultNoProxy = normalizeString(defaultPool?.noProxy);
+
+      if (defaultPool && defaultPool.isActive === true && defaultProxyUrl) {
+        if (defaultPool.type === "vercel" || defaultPool.type === "cloudflare" || defaultPool.type === "deno") {
+          return {
+            source: defaultPool.type,
+            proxyPoolId: defaultProxyPoolId,
+            proxyPool: defaultPool,
+            connectionProxyEnabled: false,
+            connectionProxyUrl: "",
+            connectionNoProxy: defaultNoProxy,
+            strictProxy: defaultPool.strictProxy === true,
+            vercelRelayUrl: defaultProxyUrl,
+          };
+        }
+
+        return {
+          source: "default_pool",
+          proxyPoolId: defaultProxyPoolId,
+          proxyPool: defaultPool,
+          connectionProxyEnabled: true,
+          connectionProxyUrl: defaultProxyUrl,
+          connectionNoProxy: defaultNoProxy,
+          strictProxy: defaultPool.strictProxy === true,
+        };
+      }
+    }
+
     if (
       legacy.connectionProxyEnabled &&
       legacy.connectionProxyUrl

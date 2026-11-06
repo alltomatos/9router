@@ -1,6 +1,6 @@
 # Docker
 
-Run 9Router in a container. Published image: [`decolua/9router`](https://hub.docker.com/r/decolua/9router) — multi-platform `linux/amd64` + `linux/arm64`.
+Run 9Router in a container. Published image: [`ronaldodavi/9router`](https://hub.docker.com/r/ronaldodavi/9router) — multi-platform `linux/amd64` + `linux/arm64`.
 
 ---
 
@@ -14,7 +14,7 @@ docker run -d \
   -v "$HOME/.9router:/app/data" \
   -e DATA_DIR=/app/data \
   --name 9router \
-  decolua/9router:latest
+  ronaldodavi/9router:latest
 ```
 
 App listens on port `20128`. Open: http://localhost:20128
@@ -61,7 +61,7 @@ docker run -d \
   -e HOSTNAME=0.0.0.0 \
   -e DEBUG=true \
   --name 9router \
-  decolua/9router:latest
+  ronaldodavi/9router:latest
 ```
 
 ## Optional Headroom sidecar
@@ -71,7 +71,7 @@ The 9Router image does not bundle Python or Headroom. To use Headroom in Docker,
 ```yaml
 services:
   9router:
-    image: decolua/9router:latest
+    image: ronaldodavi/9router:latest
     ports:
       - "20128:20128"
     volumes:
@@ -95,7 +95,7 @@ If Headroom runs on the Docker host instead of as a sidecar, use `http://host.do
 ## Update to latest
 
 ```bash
-docker pull decolua/9router:latest
+docker pull ronaldodavi/9router:latest
 docker rm -f 9router
 # re-run the quick start command
 ```
@@ -103,7 +103,7 @@ docker rm -f 9router
 To pin a specific version instead of following `latest`, use a numbered image tag:
 
 ```bash
-docker pull decolua/9router:0.5.81
+docker pull ronaldodavi/9router:0.5.95
 ```
 
 ---

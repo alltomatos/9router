@@ -28,14 +28,15 @@ function CallbackContent() {
 
     let relayed = false;
 
-    // Trusted origins that may receive this callback. The OAuth code/state
-    // must only be relayed to the dashboard window we expect to be the opener
-    // (same origin) or the Codex helper that listens on a fixed loopback port.
-    // Any other origin is treated as hostile (drive-by attacker that opened
-    // the popup against the well-known redirect_uri to phish the code).
+    // Trusted origins that may receive this callback.
+    // Handles 127.0.0.1 vs localhost mismatches and custom port bindings.
+    const currentPort = window.location.port ? `:${window.location.port}` : "";
     const expectedOrigins = [
-      window.location.origin, // Same origin (for most providers)
+      window.location.origin, // Same origin
+      `http://127.0.0.1${currentPort}`,
+      `http://localhost${currentPort}`,
       "http://localhost:1455", // Codex specific port
+      "http://127.0.0.1:1455",
     ];
 
     // Method 1: postMessage to opener (popup mode)
@@ -70,6 +71,15 @@ function CallbackContent() {
       relayed = true;
     } catch (e) {
       console.log("localStorage failed:", e);
+    }
+
+    // Method 4: Broadcast to opener across any origin if opener exists
+    if (window.opener) {
+      try {
+        window.opener.postMessage({ type: "oauth_callback", data: callbackData }, "*");
+      } catch (e) {
+        console.log("Wildcard postMessage failed:", e);
+      }
     }
 
     if (!(code || token || error)) {
